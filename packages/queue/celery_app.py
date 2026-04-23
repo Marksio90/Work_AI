@@ -9,6 +9,15 @@ from packages.config import get_settings
 settings = get_settings()
 
 celery_app = Celery("work_ai", broker=settings.celery_broker_url, backend=settings.celery_result_backend)
+beat_schedule = {}
+if settings.task_source_mode == "mock_pull":
+    beat_schedule = {
+        "poll-paid-task-source": {
+            "task": "packages.queue.tasks.ingest_source_tasks",
+            "schedule": settings.task_source_poll_interval_seconds,
+        }
+    }
+
 celery_app.conf.update(
     task_serializer="json",
     result_serializer="json",

@@ -8,17 +8,30 @@ from uuid import uuid4
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from redis import Redis
-from sqlalchemy import select, text
+from sqlalchemy import and_, func, select, text
 from sqlalchemy.orm import Session
 
 from packages.cache import IdempotencyManager
 from packages.config import get_settings
 from packages.contracts.enums import TaskType
 from packages.contracts.task_contract import TaskContract
-from packages.persistence import Base, Task, TaskResult, engine, get_db_session
+from packages.economics import ProfitabilityEngine
+from packages.persistence import (
+    ApiUsageEvent,
+    Base,
+    PayoutReconciliation,
+    Task,
+    TaskEconomics,
+    TaskResult,
+    engine,
+    get_db_session,
+)
 from packages.providers import factory
 from packages.queue import get_economics_summary, ingest_source_tasks, process_task
 from packages.telemetry import (
+    ECONOMICS_ARPU_USD,
+    ECONOMICS_CHURN_LIKE_RATE,
+    ECONOMICS_MRR_USD,
     TASKS_COMPLETED_TOTAL,
     TASKS_CREATED_TOTAL,
     configure_logging,
@@ -40,6 +53,78 @@ class TaskCreateRequest(BaseModel):
     output_schema: dict = Field(default_factory=dict)
     constraints: dict = Field(default_factory=dict)
     metadata: dict = Field(default_factory=dict)
+
+
+class ReconciliationRequest(BaseModel):
+    paid_amount_usd: float = Field(ge=0.0)
+
+
+def _month_key(dt: datetime) -> str:
+    return dt.strftime("%Y-%m")
+
+
+def _revenue_for_plan(plan: str) -> float:
+    normalized = plan.strip().lower()
+    if normalized == "pro":
+        return settings.rapidapi_price_pro_usd
+    if normalized == "basic":
+        return settings.rapidapi_price_basic_usd
+    return settings.rapidapi_price_free_usd
+
+
+def _verify_rapidapi_if_enabled(x_rapidapi_proxy_secret: str | None = Header(default=None, alias="X-RapidAPI-Proxy-Secret")) -> None:
+    if settings.task_source_mode != "rapidapi_inbound":
+        return
+    if x_rapidapi_proxy_secret != settings.rapidapi_proxy_secret:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid RapidAPI proxy secret")
+
+
+def _register_rapidapi_usage(
+    *,
+    db: Session,
+    endpoint: str,
+    task_id: str,
+    subscriber_id: str | None,
+    subscription: str | None,
+    payload: dict,
+) -> None:
+    if settings.task_source_mode != "rapidapi_inbound":
+        return
+
+    subscriber = subscriber_id or "rapidapi-anonymous"
+    plan = (subscription or "free").lower()
+    revenue = _revenue_for_plan(plan)
+
+    db.add(
+        ApiUsageEvent(
+            subscriber_id=subscriber,
+            subscription_plan=plan,
+            endpoint=endpoint,
+            task_id=task_id,
+            request_units=1,
+            estimated_revenue_usd=revenue,
+        )
+    )
+
+    profitability = ProfitabilityEngine(
+        infra_cost_per_task_usd=settings.economics_infra_cost_per_task_usd,
+        token_cost_per_1k_usd=settings.economics_token_cost_per_1k_usd,
+        min_margin_usd=settings.economics_min_margin_usd,
+        default_success_probability=1.0,
+    )
+    decision = profitability.evaluate(payload=payload, expected_payout_usd=revenue)
+    db.merge(
+        TaskEconomics(
+            task_id=task_id,
+            source_name="rapidapi",
+            expected_payout_usd=revenue,
+            estimated_cost_usd=decision.estimated_cost_usd,
+            actual_payout_usd=None,
+            expected_success_probability=1.0,
+            margin_usd=decision.expected_margin_usd,
+            status="queued",
+        )
+    )
 
 
 @app.get("/v1/health")
@@ -69,12 +154,14 @@ def ready() -> dict:
     raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail={"redis": redis_ok, "db": db_ok})
 
 
-@app.post("/v1/tasks", status_code=status.HTTP_202_ACCEPTED)
+@app.post("/v1/tasks", status_code=status.HTTP_202_ACCEPTED, dependencies=[Depends(_verify_rapidapi_if_enabled)])
 def create_task(
     payload: TaskCreateRequest,
     request: Request,
     db: Session = Depends(get_db_session),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    x_rapidapi_user: str | None = Header(default=None, alias="X-RapidAPI-User"),
+    x_rapidapi_subscription: str | None = Header(default=None, alias="X-RapidAPI-Subscription"),
 ) -> dict:
     idem = IdempotencyManager()
     if idempotency_key:
@@ -105,6 +192,16 @@ def create_task(
         correlation_id=request.state.correlation_id,
     )
     db.add(task)
+
+    _register_rapidapi_usage(
+        db=db,
+        endpoint="POST /v1/tasks",
+        task_id=task_id,
+        subscriber_id=x_rapidapi_user,
+        subscription=x_rapidapi_subscription,
+        payload=payload.input_payload,
+    )
+
     db.commit()
 
     if idempotency_key:

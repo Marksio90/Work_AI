@@ -32,3 +32,10 @@ API i worker startują dopiero po poprawnym zakończeniu migracji oraz po health
 - healthcheck providera aktywny,
 - monitorowane metryki jakości i latency,
 - alerty na wzrost `abstain` i `failed`.
+
+
+## Tryb RapidAPI
+
+Ustaw `TASK_SOURCE_MODE=rapidapi_inbound` oraz `RAPIDAPI_PROXY_SECRET`.
+W tym trybie endpoint `POST /v1/tasks` weryfikuje nagłówek `X-RapidAPI-Proxy-Secret`,
+a ekonomia oparta jest o eventy requestów zamiast pull-ingu task source.
