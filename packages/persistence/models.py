@@ -97,6 +97,67 @@ class ScoringReport(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+
+
+class ExternalTask(Base):
+    __tablename__ = "external_tasks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    source_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    external_task_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    internal_task_id: Mapped[str] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, unique=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    expected_payout_usd: Mapped[float] = mapped_column(nullable=False)
+    estimated_cost_usd: Mapped[float] = mapped_column(nullable=False)
+    expected_margin_usd: Mapped[float] = mapped_column(nullable=False)
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("source_name", "external_task_id", name="uq_external_task_source_id"),)
+
+
+class TaskEconomics(Base):
+    __tablename__ = "task_economics"
+
+    task_id: Mapped[str] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True)
+    source_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    expected_payout_usd: Mapped[float] = mapped_column(nullable=False)
+    estimated_cost_usd: Mapped[float] = mapped_column(nullable=False)
+    actual_payout_usd: Mapped[float | None] = mapped_column(nullable=True)
+    expected_success_probability: Mapped[float] = mapped_column(nullable=False)
+    margin_usd: Mapped[float | None] = mapped_column(nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+
+
+class ApiUsageEvent(Base):
+    __tablename__ = "api_usage_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    subscriber_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    subscription_plan: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    endpoint: Mapped[str] = mapped_column(String(128), nullable=False)
+    task_id: Mapped[str | None] = mapped_column(ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True)
+    request_units: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    estimated_revenue_usd: Mapped[float] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class PayoutReconciliation(Base):
+    __tablename__ = "payout_reconciliations"
+
+    month: Mapped[str] = mapped_column(String(7), primary_key=True)
+    estimated_revenue_usd: Mapped[float] = mapped_column(nullable=False)
+    paid_amount_usd: Mapped[float] = mapped_column(nullable=False)
+    variance_usd: Mapped[float] = mapped_column(nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class SystemEvent(Base):
     __tablename__ = "system_events"
 

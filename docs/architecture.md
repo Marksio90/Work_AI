@@ -9,7 +9,9 @@
 - **Validators (`packages/validators`)**: schema/constraints/consistency.
 - **Scoring (`packages/scoring`)**: deterministyczna ocena jakości.
 - **Cache (`packages/cache`)**: idempotency i deduplication.
-- **Queue (`packages/queue`)**: integracja z Celery.
+- **Queue (`packages/queue`)**: integracja z Celery + polling task source.
+- **Task Source (`packages/task_source`)**: konektory do platform z płatnymi taskami.
+- **Economics (`packages/economics`)**: decyzje opłacalności i metryki marży.
 - **Persistence (`packages/persistence`)**: modele i sesje bazy.
 
 ## Zasady projektowe
@@ -18,3 +20,5 @@
 2. Jawny `ExecutionPolicy` (retry, timeout, abstain).
 3. Separacja odpowiedzialności: provider ≠ validator ≠ scoring.
 4. Testability-by-design: mock provider i fixture-based eval harness.
+
+- Tryb `rapidapi_inbound` rozlicza usage per request i waliduje `X-RapidAPI-Proxy-Secret`.
