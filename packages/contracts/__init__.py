@@ -9,7 +9,8 @@ from packages.contracts.execution_policy import (
     TimeoutPolicy,
 )
 from packages.contracts.task_contract import TaskContract
-from packages.contracts.task_result import ScoringResult, TaskResult, ValidationResult
+from packages.contracts.task_result import ScoringResult, TaskResult
+from packages.validators.base import ValidationReport
 
 __all__ = [
     "ExecutionPolicy",
@@ -23,5 +24,5 @@ __all__ = [
     "TaskStatus",
     "TaskType",
     "TimeoutPolicy",
-    "ValidationResult",
+    "ValidationReport",
 ]
