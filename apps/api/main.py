@@ -252,10 +252,10 @@ def cancel_task(task_id: str, db: Session = Depends(get_db_session)) -> dict:
     return {"task_id": task_id, "status": task.status, "cancelled": True}
 
 
+
+
 @app.post("/v1/source/pull")
 def pull_source_tasks(limit: int = 10) -> dict:
-    if settings.task_source_mode != "mock_pull":
-        return {"status": "disabled", "reason": "task_source_mode is not mock_pull"}
     async_result = ingest_source_tasks.delay(limit=limit)
     return {"status": "queued", "job_id": async_result.id, "limit": limit}
 
@@ -263,115 +263,6 @@ def pull_source_tasks(limit: int = 10) -> dict:
 @app.get("/v1/economics/summary")
 def economics_summary() -> dict:
     return get_economics_summary.delay().get(timeout=20)
-
-
-@app.get("/v1/economics/kpis")
-def economics_kpis(db: Session = Depends(get_db_session)) -> dict:
-    now = datetime.now(timezone.utc)
-    current_month = _month_key(now)
-    previous_month_dt = now.replace(day=1)
-    if previous_month_dt.month == 1:
-        previous_month_dt = previous_month_dt.replace(year=previous_month_dt.year - 1, month=12)
-    else:
-        previous_month_dt = previous_month_dt.replace(month=previous_month_dt.month - 1)
-    previous_month = _month_key(previous_month_dt)
-
-    month_start = datetime.strptime(f"{current_month}-01", "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    prev_month_start = datetime.strptime(f"{previous_month}-01", "%Y-%m-%d").replace(tzinfo=timezone.utc)
-
-    current_revenue = db.scalar(
-        select(func.coalesce(func.sum(ApiUsageEvent.estimated_revenue_usd), 0.0)).where(ApiUsageEvent.created_at >= month_start)
-    )
-    current_active = db.scalar(
-        select(func.count(func.distinct(ApiUsageEvent.subscriber_id))).where(ApiUsageEvent.created_at >= month_start)
-    )
-    prev_active_ids = {
-        row[0]
-        for row in db.execute(
-            select(func.distinct(ApiUsageEvent.subscriber_id)).where(
-                and_(ApiUsageEvent.created_at >= prev_month_start, ApiUsageEvent.created_at < month_start)
-            )
-        )
-    }
-    current_active_ids = {
-        row[0]
-        for row in db.execute(select(func.distinct(ApiUsageEvent.subscriber_id)).where(ApiUsageEvent.created_at >= month_start))
-    }
-
-    churn_like = 0.0
-    if prev_active_ids:
-        churn_like = round(len(prev_active_ids - current_active_ids) / len(prev_active_ids), 6)
-
-    mrr = float(current_revenue or 0.0)
-    arpu = round(mrr / max(1, int(current_active or 0)), 6)
-
-    ECONOMICS_MRR_USD.set(mrr)
-    ECONOMICS_ARPU_USD.set(arpu)
-    ECONOMICS_CHURN_LIKE_RATE.set(churn_like)
-
-    return {
-        "month": current_month,
-        "mrr_usd": mrr,
-        "arpu_usd": arpu,
-        "churn_like_rate": churn_like,
-        "active_subscribers": int(current_active or 0),
-    }
-
-
-@app.post("/v1/economics/reconciliation/{month}")
-def reconcile_month(month: str, payload: ReconciliationRequest, db: Session = Depends(get_db_session)) -> dict:
-    try:
-        month_start = datetime.strptime(f"{month}-01", "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail="Month must be YYYY-MM") from exc
-
-    if month_start.month == 12:
-        next_month = month_start.replace(year=month_start.year + 1, month=1)
-    else:
-        next_month = month_start.replace(month=month_start.month + 1)
-
-    estimated = db.scalar(
-        select(func.coalesce(func.sum(ApiUsageEvent.estimated_revenue_usd), 0.0)).where(
-            and_(ApiUsageEvent.created_at >= month_start, ApiUsageEvent.created_at < next_month)
-        )
-    )
-    estimated = float(estimated or 0.0)
-    variance = round(payload.paid_amount_usd - estimated, 6)
-    status_name = "matched" if abs(variance) <= 0.01 else ("overpaid" if variance > 0 else "underpaid")
-
-    db.merge(
-        PayoutReconciliation(
-            month=month,
-            estimated_revenue_usd=estimated,
-            paid_amount_usd=payload.paid_amount_usd,
-            variance_usd=variance,
-            status=status_name,
-        )
-    )
-    db.commit()
-    return {
-        "month": month,
-        "estimated_revenue_usd": estimated,
-        "paid_amount_usd": payload.paid_amount_usd,
-        "variance_usd": variance,
-        "status": status_name,
-    }
-
-
-@app.get("/v1/economics/reconciliation/{month}")
-def get_reconciliation(month: str, db: Session = Depends(get_db_session)) -> dict:
-    item = db.scalar(select(PayoutReconciliation).where(PayoutReconciliation.month == month))
-    if item is None:
-        raise HTTPException(status_code=404, detail="Reconciliation not found")
-    return {
-        "month": item.month,
-        "estimated_revenue_usd": item.estimated_revenue_usd,
-        "paid_amount_usd": item.paid_amount_usd,
-        "variance_usd": item.variance_usd,
-        "status": item.status,
-        "updated_at": item.updated_at,
-    }
-
 
 @app.get("/v1/providers")
 def providers() -> dict:

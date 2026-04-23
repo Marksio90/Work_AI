@@ -131,33 +131,6 @@ class TaskEconomics(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
-
-
-class ApiUsageEvent(Base):
-    __tablename__ = "api_usage_events"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    subscriber_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
-    subscription_plan: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
-    endpoint: Mapped[str] = mapped_column(String(128), nullable=False)
-    task_id: Mapped[str | None] = mapped_column(ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True)
-    request_units: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    estimated_revenue_usd: Mapped[float] = mapped_column(nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
-
-
-class PayoutReconciliation(Base):
-    __tablename__ = "payout_reconciliations"
-
-    month: Mapped[str] = mapped_column(String(7), primary_key=True)
-    estimated_revenue_usd: Mapped[float] = mapped_column(nullable=False)
-    paid_amount_usd: Mapped[float] = mapped_column(nullable=False)
-    variance_usd: Mapped[float] = mapped_column(nullable=False)
-    status: Mapped[str] = mapped_column(String(32), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-
 class SystemEvent(Base):
     __tablename__ = "system_events"
 

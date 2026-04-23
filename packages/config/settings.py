@@ -36,15 +36,9 @@ class Settings(BaseSettings):
     provider_name: str = "mock"
     provider_model: str = "mock-model"
 
-    task_source_mode: Literal["mock_pull", "rapidapi_inbound"] = "mock_pull"
     task_source_name: str = "mock_marketplace"
     task_source_poll_batch_size: int = Field(default=10, ge=1, le=200)
     task_source_poll_interval_seconds: int = Field(default=30, ge=5)
-
-    rapidapi_proxy_secret: str = "changeme-rapidapi-secret"
-    rapidapi_price_free_usd: float = Field(default=0.0, ge=0.0)
-    rapidapi_price_basic_usd: float = Field(default=0.03, ge=0.0)
-    rapidapi_price_pro_usd: float = Field(default=0.06, ge=0.0)
 
     economics_min_margin_usd: float = Field(default=0.005, ge=0.0)
     economics_default_success_probability: float = Field(default=0.85, ge=0.0, le=1.0)

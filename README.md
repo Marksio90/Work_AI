@@ -56,7 +56,6 @@ Serwisy:
 - Redis: `localhost:6379`
 - Postgres: `localhost:5432`
 - Worker Celery (background)
-- Beat Celery (cykliczny polling płatnych tasków ze źródła)
 - `migrate` (jednorazowy kontener uruchamiający `alembic upgrade head`)
 
 Jeśli chcesz nadpisać wartości domyślne, skopiuj `.env.example` do `.env` i zmień zmienne środowiskowe.
@@ -149,22 +148,3 @@ System zawiera connector źródła zadań (`packages/task_source`) i prosty siln
 - Cykliczny polling realizuje Celery Beat (`ingest_source_tasks`).
 - API endpoint `POST /v1/source/pull` pozwala ręcznie wymusić pobranie tasków.
 - API endpoint `GET /v1/economics/summary` zwraca agregaty przychodu/kosztu/marży.
-
-
-### RapidAPI inbound mode
-
-Aby przełączyć platformę na tryb marketplace API (RapidAPI), ustaw:
-
-```env
-TASK_SOURCE_MODE=rapidapi_inbound
-RAPIDAPI_PROXY_SECRET=twoj-sekret-z-rapidapi
-RAPIDAPI_PRICE_FREE_USD=0.0
-RAPIDAPI_PRICE_BASIC_USD=0.03
-RAPIDAPI_PRICE_PRO_USD=0.06
-```
-
-W tym trybie:
-- `POST /v1/tasks` wymaga poprawnego `X-RapidAPI-Proxy-Secret`,
-- economics liczone jest per-request (usage events),
-- dostępne są KPI: `GET /v1/economics/kpis`,
-- reconciliation payout: `POST/GET /v1/economics/reconciliation/{YYYY-MM}`.

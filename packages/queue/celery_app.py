@@ -27,5 +27,10 @@ celery_app.conf.update(
     task_default_retry_delay=5,
     task_time_limit=settings.celery_task_time_limit,
     task_soft_time_limit=settings.celery_task_soft_time_limit,
-    beat_schedule=beat_schedule,
+    beat_schedule={
+        "poll-paid-task-source": {
+            "task": "packages.queue.tasks.ingest_source_tasks",
+            "schedule": settings.task_source_poll_interval_seconds,
+        }
+    },
 )

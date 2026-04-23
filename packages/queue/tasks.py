@@ -59,7 +59,6 @@ def process_task(self, task_id: str) -> dict:
         attempt.finished_at = datetime.now(timezone.utc)
 
         _submit_external_if_needed(db=db, source=source, task_id=task_id, result=result.model_dump(mode="json"))
-        _close_inbound_economics_if_needed(db=db, task_id=task_id, task_status=result.status.value)
 
         db.commit()
         return {"task_id": task_id, "status": task.status}
@@ -193,16 +192,6 @@ def get_economics_summary() -> dict:
         "actual_payout_usd": float(row[3]),
         "avg_margin_usd": float(row[4]),
     }
-
-
-def _close_inbound_economics_if_needed(*, db: Session, task_id: str, task_status: str) -> None:
-    economics = db.scalar(select(TaskEconomics).where(TaskEconomics.task_id == task_id))
-    if economics is None or economics.source_name != "rapidapi":
-        return
-    if economics.actual_payout_usd is None:
-        economics.actual_payout_usd = economics.expected_payout_usd
-    economics.margin_usd = round(economics.actual_payout_usd - economics.estimated_cost_usd, 6)
-    economics.status = task_status
 
 
 def _submit_external_if_needed(*, db: Session, source, task_id: str, result: dict) -> None:
