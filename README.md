@@ -56,7 +56,6 @@ Serwisy:
 - Redis: `localhost:6379`
 - Postgres: `localhost:5432`
 - Worker Celery (background)
-- Beat Celery (cykliczny polling płatnych tasków ze źródła)
 - `migrate` (jednorazowy kontener uruchamiający `alembic upgrade head`)
 
 Jeśli chcesz nadpisać wartości domyślne, skopiuj `.env.example` do `.env` i zmień zmienne środowiskowe.

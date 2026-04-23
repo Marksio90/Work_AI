@@ -15,8 +15,7 @@ Compose uruchamia:
 - Redis,
 - kontener `migrate` (Alembic `upgrade head`),
 - API,
-- worker Celery,
-- beat Celery (polling zewnętrznych płatnych tasków).
+- worker Celery.
 
 API i worker startują dopiero po poprawnym zakończeniu migracji oraz po healthcheckach Redis/Postgres.
 
