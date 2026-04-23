@@ -1,10 +1,5 @@
-"""Entrypoint aplikacji worker."""
+"""Entrypoint for Celery worker."""
 
+from packages.queue import celery_app
 
-def main() -> None:
-    """Uruchamia proces workera."""
-    print("Worker app started")
-
-
-if __name__ == "__main__":
-    main()
+__all__ = ["celery_app"]
