@@ -9,15 +9,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from packages.contracts.enums import FinalOutcome, TaskStatus
-
-
-class ValidationResult(BaseModel):
-    """Wynik walidacji odpowiedzi."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    passed: bool
-    issues: list[str] = Field(default_factory=list)
+from packages.validators.base import ValidationReport
 
 
 class ScoringResult(BaseModel):
@@ -40,10 +32,22 @@ class TaskResult(BaseModel):
     status: TaskStatus
     final_outcome: FinalOutcome
     output_payload: dict[str, Any] = Field(default_factory=dict)
-    validation: ValidationResult
+    validation: ValidationReport
     scoring: ScoringResult
     abstain_reason: str | None = Field(default=None)
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+
+    @staticmethod
+    def outcome_from_validation(report: ValidationReport) -> FinalOutcome:
+        """Mapuje decyzję walidacji na deterministyczny final_outcome."""
+
+        if report.decision == "pass":
+            return FinalOutcome.SUCCESS
+        if report.decision == "abstain":
+            return FinalOutcome.ABSTAINED
+        return FinalOutcome.FAILURE
 
     def deterministic_json(self) -> str:
         """Zwraca deterministyczny JSON (sortowane klucze) użyteczny m.in. do fingerprintu."""
