@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Any
 
@@ -43,8 +44,16 @@ class TaskOrchestrator:
         strategy = self._choose_strategy(contract)
         self._step(trace, "choose strategy", strategy)
 
-        output_payload = await self._inference(processed=processed, strategy=strategy)
-        self._step(trace, "inference", {"output_keys": sorted(output_payload.keys())})
+        try:
+            output_payload, attempts = await self._run_with_retry(
+                processed=processed,
+                strategy=strategy,
+                contract=contract,
+            )
+        except Exception as exc:
+            return self._error_result(contract=contract, trace=trace, started=started, error=exc)
+
+        self._step(trace, "inference", {"output_keys": sorted(output_payload.keys()), "attempts": attempts})
 
         repair_count, output_payload = self._repair(contract=contract, output_payload=output_payload)
         self._step(trace, "repair", {"repair_count": repair_count})
@@ -73,7 +82,7 @@ class TaskOrchestrator:
             validation=validation,
             scoring=scoring,
             abstain_reason=abstain_reason,
-            metadata={"trace": trace, "strategy": strategy},
+            metadata={"trace": trace, "strategy": strategy, "attempts": attempts},
         )
 
         self._persist(result)
@@ -83,6 +92,64 @@ class TaskOrchestrator:
         self._step(trace, "telemetry", {"latency_ms": round(latency_ms, 2)})
 
         return result
+
+    async def _run_with_retry(
+        self,
+        *,
+        processed: dict[str, Any],
+        strategy: dict[str, Any],
+        contract: TaskContract,
+    ) -> tuple[dict[str, Any], int]:
+        retry_policy = contract.execution_policy.retry_policy
+        timeout_seconds = contract.execution_policy.timeouts.execution_timeout_seconds
+
+        last_error: Exception | None = None
+        for attempt in range(1, retry_policy.max_attempts + 1):
+            try:
+                output_payload = await asyncio.wait_for(
+                    self._inference(processed=processed, strategy=strategy),
+                    timeout=timeout_seconds,
+                )
+                return output_payload, attempt
+            except Exception as exc:  # includes TimeoutError
+                last_error = exc
+                if attempt >= retry_policy.max_attempts:
+                    break
+                delay = retry_policy.backoff_seconds
+                if retry_policy.exponential_backoff:
+                    delay *= 2 ** (attempt - 1)
+                if delay > 0:
+                    await asyncio.sleep(delay)
+
+        assert last_error is not None
+        raise last_error
+
+    def _error_result(self, *, contract: TaskContract, trace: dict[str, Any], started: float, error: Exception) -> TaskResult:
+        latency_ms = (time.perf_counter() - started) * 1000.0
+        self._step(trace, "inference", {"error": type(error).__name__})
+        self._step(trace, "outcome", {"status": TaskStatus.FAILED.value, "final_outcome": FinalOutcome.FAILURE.value})
+
+        validation = ValidationReport(decision="validation_error", passed=False, issues=[])
+        scoring = self._quality_engine.score(
+            validation_report=validation,
+            confidence_score=0.0,
+            latency_ms=latency_ms,
+            repair_count=0,
+            expected_fields=1,
+            filled_fields=0,
+            semantic_validity_score=0.0,
+        )
+
+        return TaskResult(
+            task_id=contract.task_id,
+            status=TaskStatus.FAILED,
+            final_outcome=FinalOutcome.FAILURE,
+            output_payload={},
+            validation=validation,
+            scoring=scoring,
+            abstain_reason=None,
+            metadata={"trace": trace, "error": {"type": type(error).__name__, "message": str(error)}},
+        )
 
     def _preprocess(self, contract: TaskContract) -> dict[str, Any]:
         payload = dict(contract.input_payload)

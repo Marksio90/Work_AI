@@ -1,0 +1,22 @@
+{
+  "task_id": "fixture-error-1",
+  "task_type": "classification",
+  "input_payload": {
+    "text": "To wejście powoduje błąd providera"
+  },
+  "output_schema": {
+    "type": "object",
+    "required": ["label"],
+    "properties": {
+      "label": {"type": "string"}
+    },
+    "additionalProperties": true
+  },
+  "constraints": {},
+  "execution_policy": {
+    "abstain_allowed": false,
+    "retry_policy": {"max_attempts": 2, "backoff_seconds": 0.0, "exponential_backoff": false},
+    "timeouts": {"queue_timeout_seconds": 5, "execution_timeout_seconds": 1, "total_timeout_seconds": 10}
+  },
+  "metadata": {"fixture": true, "expected": "failure"}
+}

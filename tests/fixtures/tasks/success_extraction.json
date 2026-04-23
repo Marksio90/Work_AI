@@ -1,0 +1,28 @@
+{
+  "task_id": "fixture-success-1",
+  "task_type": "extraction",
+  "input_payload": {
+    "source": "Klient Jan Kowalski zamówił 2 sztuki produktu X."
+  },
+  "output_schema": {
+    "type": "object",
+    "required": ["customer", "quantity"],
+    "properties": {
+      "customer": {"type": "string"},
+      "quantity": {"type": "integer"}
+    },
+    "additionalProperties": true
+  },
+  "constraints": {
+    "required_non_empty": ["customer"],
+    "numeric_ranges": {
+      "quantity": {"min": 1, "max": 100}
+    }
+  },
+  "execution_policy": {
+    "abstain_allowed": true,
+    "retry_policy": {"max_attempts": 2, "backoff_seconds": 0.0, "exponential_backoff": false},
+    "timeouts": {"queue_timeout_seconds": 5, "execution_timeout_seconds": 2, "total_timeout_seconds": 10}
+  },
+  "metadata": {"fixture": true, "expected": "success"}
+}
