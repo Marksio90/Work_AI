@@ -19,6 +19,9 @@ dependencies = [
   "redis>=5.1.0",
   "structlog>=24.4.0",
   "prometheus-client>=0.21.0",
+  "celery>=5.4.0",
+  "alembic>=1.14.0",
+  "pydantic-settings>=2.6.0",
 ]
 
 [project.optional-dependencies]
