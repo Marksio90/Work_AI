@@ -2,19 +2,30 @@
 
 ## Docker Compose (lokalnie i preprod)
 
-1. Uzupełnij `.env` na bazie `.env.example`.
-2. Uruchom:
+1. (Opcjonalnie) skopiuj `.env.example` do `.env` i nadpisz ustawienia.
+2. Uruchom pełny stack:
 
 ```bash
 docker compose -f infra/compose/docker-compose.yml up --build
 ```
+
+Compose uruchamia:
+
+- Postgres,
+- Redis,
+- kontener `migrate` (Alembic `upgrade head`),
+- API,
+- worker Celery,
+- beat Celery (polling zewnętrznych płatnych tasków).
+
+API i worker startują dopiero po poprawnym zakończeniu migracji oraz po healthcheckach Redis/Postgres.
 
 ## Minimalny stack
 
 - API container
 - Worker container
 - Redis
-- (opcjonalnie) Postgres
+- Postgres
 
 ## Checklist
 

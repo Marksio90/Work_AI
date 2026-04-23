@@ -17,7 +17,7 @@ from packages.contracts.enums import TaskType
 from packages.contracts.task_contract import TaskContract
 from packages.persistence import Base, Task, TaskResult, engine, get_db_session
 from packages.providers import factory
-from packages.queue import process_task
+from packages.queue import get_economics_summary, ingest_source_tasks, process_task
 from packages.telemetry import (
     TASKS_COMPLETED_TOTAL,
     TASKS_CREATED_TOTAL,
@@ -154,6 +154,18 @@ def cancel_task(task_id: str, db: Session = Depends(get_db_session)) -> dict:
     db.commit()
     return {"task_id": task_id, "status": task.status, "cancelled": True}
 
+
+
+
+@app.post("/v1/source/pull")
+def pull_source_tasks(limit: int = 10) -> dict:
+    async_result = ingest_source_tasks.delay(limit=limit)
+    return {"status": "queued", "job_id": async_result.id, "limit": limit}
+
+
+@app.get("/v1/economics/summary")
+def economics_summary() -> dict:
+    return get_economics_summary.delay().get(timeout=20)
 
 @app.get("/v1/providers")
 def providers() -> dict:
