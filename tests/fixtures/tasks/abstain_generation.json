@@ -1,0 +1,25 @@
+{
+  "task_id": "fixture-abstain-1",
+  "task_type": "generation",
+  "input_payload": {
+    "prompt": "Napisz krótkie podsumowanie artykułu o AI"
+  },
+  "output_schema": {
+    "type": "object",
+    "required": ["summary", "title"],
+    "properties": {
+      "summary": {"type": "string"},
+      "title": {"type": "string"}
+    },
+    "additionalProperties": true
+  },
+  "constraints": {
+    "quality_required_fields": ["summary"]
+  },
+  "execution_policy": {
+    "abstain_allowed": true,
+    "retry_policy": {"max_attempts": 1, "backoff_seconds": 0.0, "exponential_backoff": false},
+    "timeouts": {"queue_timeout_seconds": 5, "execution_timeout_seconds": 2, "total_timeout_seconds": 10}
+  },
+  "metadata": {"fixture": true, "expected": "abstain"}
+}

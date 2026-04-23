@@ -6,12 +6,12 @@
 
 Wszystkie metryki są w zakresie `[0.0, 1.0]`.
 
-- `structural_validity_score` — jakość strukturalna po walidacji (schema/constraints/consistency).
+- `structural_validity_score` — jakość strukturalna po walidacji.
 - `semantic_validity_score` — zgodność semantyczna odpowiedzi z celem zadania.
 - `completeness_score` — proporcja pól oczekiwanych do faktycznie wypełnionych.
-- `confidence_score` — pewność modelu/toru inferencyjnego.
+- `confidence_score` — pewność toru inferencyjnego.
 - `latency_penalty` — kara za wolną odpowiedź.
-- `repair_penalty` — kara za konieczność napraw po inferencji.
+- `repair_penalty` — kara za konieczność napraw.
 
 ### Wzór
 
@@ -25,26 +25,13 @@ base_score =
 final_score = clamp(base_score - latency_penalty - repair_penalty, 0.0, 1.0)
 ```
 
-## Dokładne kary
+## Kary i progi
 
-### `latency_penalty`
+- latency: `0.00 / 0.05 / 0.10 / 0.20` dla progów `<=1500 / <=4000 / <=8000 / >8000 ms`.
+- repair: `0.08 * repair_count` (max `0.30`).
 
-- `0.00` dla `latency_ms <= 1500`
-- `0.05` dla `1500 < latency_ms <= 4000`
-- `0.10` dla `4000 < latency_ms <= 8000`
-- `0.20` dla `latency_ms > 8000`
-
-### `repair_penalty`
-
-- `0.00` gdy brak napraw
-- `0.08 * repair_count`, maksymalnie `0.30`
-
-## Dokładne progi success/abstain/error
-
-Decyzja jest wyznaczana na podstawie `final_score`:
+Outcome recommendation:
 
 - **success**: `final_score >= 0.80`
 - **abstain**: `0.55 <= final_score < 0.80`
 - **error**: `final_score < 0.55`
-
-Te progi są używane do `recommended_outcome` w szczegółach scoringu.
