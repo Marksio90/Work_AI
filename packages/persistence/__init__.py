@@ -2,8 +2,10 @@
 
 from packages.persistence.models import (
     Base,
+    ExternalTask,
     ProviderRun,
     ScoringReport,
+    TaskEconomics,
     SystemEvent,
     Task,
     TaskAttempt,
@@ -17,9 +19,11 @@ __all__ = [
     "Task",
     "TaskAttempt",
     "TaskResult",
+    "ExternalTask",
     "ProviderRun",
     "ValidationReport",
     "ScoringReport",
+    "TaskEconomics",
     "SystemEvent",
     "engine",
     "SessionLocal",

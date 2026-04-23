@@ -139,3 +139,12 @@ Wynik raportu JSON zawiera:
 - `docs/validation.md`
 - `docs/development.md`
 - `docs/deployment.md`
+
+
+## Monetyzacja / source tasks
+
+System zawiera connector źródła zadań (`packages/task_source`) i prosty silnik opłacalności (`packages/economics`).
+
+- Cykliczny polling realizuje Celery Beat (`ingest_source_tasks`).
+- API endpoint `POST /v1/source/pull` pozwala ręcznie wymusić pobranie tasków.
+- API endpoint `GET /v1/economics/summary` zwraca agregaty przychodu/kosztu/marży.

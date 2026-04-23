@@ -32,8 +32,18 @@ class Settings(BaseSettings):
     idempotency_ttl_seconds: int = Field(default=24 * 3600, ge=1)
     dedup_ttl_seconds: int = Field(default=3600, ge=1)
 
+
     provider_name: str = "mock"
     provider_model: str = "mock-model"
+
+    task_source_name: str = "mock_marketplace"
+    task_source_poll_batch_size: int = Field(default=10, ge=1, le=200)
+    task_source_poll_interval_seconds: int = Field(default=30, ge=5)
+
+    economics_min_margin_usd: float = Field(default=0.005, ge=0.0)
+    economics_default_success_probability: float = Field(default=0.85, ge=0.0, le=1.0)
+    economics_infra_cost_per_task_usd: float = Field(default=0.002, ge=0.0)
+    economics_token_cost_per_1k_usd: float = Field(default=0.0015, ge=0.0)
 
     @property
     def is_prod(self) -> bool:
