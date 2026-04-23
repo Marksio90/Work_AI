@@ -44,6 +44,8 @@ curl http://localhost:8000/v1/health
 
 ## Docker Compose
 
+Cały stack (API, worker, Redis, Postgres, migracje Alembic) uruchamiany jest przez Dockera:
+
 ```bash
 docker compose -f infra/compose/docker-compose.yml up --build
 ```
@@ -52,7 +54,11 @@ Serwisy:
 
 - API: `http://localhost:8000`
 - Redis: `localhost:6379`
+- Postgres: `localhost:5432`
 - Worker Celery (background)
+- `migrate` (jednorazowy kontener uruchamiający `alembic upgrade head`)
+
+Jeśli chcesz nadpisać wartości domyślne, skopiuj `.env.example` do `.env` i zmień zmienne środowiskowe.
 
 ## Testy
 
